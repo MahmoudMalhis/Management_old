@@ -24,8 +24,8 @@ import {
   LucideArchive,
 } from "lucide-react";
 import { toast } from "sonner";
-
-// shadcn/ui AlertDialog (لو ما عندك مركّبه، خبرني نبدّل لـ modal بسيط)
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { ErrorAlert, ErrorCard } from "@/components/ErrorDisplay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,9 +36,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-// ... نفس الاستيرادات
-
 interface Employee {
   _id: string;
   name: string;
@@ -51,7 +48,7 @@ const EmployeeList = () => {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, handleError, clearError } = useErrorHandler();
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -65,7 +62,6 @@ const EmployeeList = () => {
     const fetchEmployees = async () => {
       try {
         setLoading(true);
-        setError(null);
         const response = await authAPI.getEmployees({ status: "active" });
         setEmployees(
           (response.data || []).map((emp: any) => ({
@@ -74,13 +70,13 @@ const EmployeeList = () => {
           }))
         );
       } catch (err: any) {
-        setError(err.message || t("employees.loadFailed"));
+        handleError(error, "fetchEmployees");
       } finally {
         setLoading(false);
       }
     };
     fetchEmployees();
-  }, [t]);
+  }, []);
 
   const handleCheckboxChange = (employeeId: string) => {
     setSelectedEmployees((prev) =>
@@ -100,18 +96,20 @@ const EmployeeList = () => {
 
       if (mode === "hard") {
         setEmployees((prev) => prev.filter((e: any) => (e._id || e.id) !== id));
-        toast.success("تم حذف الموظف وجميع بياناته نهائيًا");
+        toast.success(t("employees.deletedPermanently"));
       } else {
         setEmployees((prev) =>
-          prev.map((e: any) =>
-            (e._id || e.id) === id ? { ...e, status: "archived" } : e
-          )
+          prev
+            .map((e: any) =>
+              (e._id || e.id) === id ? { ...e, status: "archived" } : e
+            )
+            .filter((e) => e.status !== "archived")
         );
-        toast.success("تم أرشفة الموظف وتعطيل دخوله مع إبقاء جميع البيانات");
+        toast.success(t("employees.archived"));
+        setConfirmFor(null);
       }
-      setConfirmFor(null);
-    } catch (err: any) {
-      toast.error(err?.message || "حدث خطأ أثناء العملية");
+    } catch (error) {
+      handleError(error, "confirmDelete");
     } finally {
       setDeletingId(null);
     }
@@ -164,7 +162,9 @@ const EmployeeList = () => {
       ) : error ? (
         <Card className="glass-card border border-red-200">
           <CardContent className="flex items-center gap-2 py-6">
-            <span className="text-red-600 dark:text-red-400">{error}</span>
+            <span className="text-red-600 dark:text-red-400">
+              {error && <ErrorAlert error={error} onDismiss={clearError} />}
+            </span>
           </CardContent>
         </Card>
       ) : (

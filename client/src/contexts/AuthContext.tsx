@@ -7,9 +7,9 @@ import {
 } from "react";
 import { authAPI } from "@/api/api";
 import { toast } from "sonner";
-import { CheckCircle, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateLoginForm } from "@/utils/validation";
 interface User {
   _id: string;
   id: string;
@@ -36,9 +36,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.getItem("token")
   );
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { t } = useTranslation();
+  const { handleError, clearError } = useErrorHandler();
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -52,11 +52,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userData = await authAPI.getCurrentUser();
         setUser(userData.user);
         setIsAuthenticated(true);
-      } catch (err) {
-        console.error("Auth error:", err);
+      } catch (error) {
+        handleError(error, "verifyToken");
         localStorage.removeItem("token");
         setToken(null);
-        setError(err.message || "Authentication failed");
       } finally {
         setLoading(false);
       }
@@ -68,29 +67,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (name: string, password: string) => {
     try {
       setLoading(true);
-      setError(null);
+      clearError();
+
+      // التحقق من صحة البيانات
+      validateLoginForm(name, password);
 
       const response = await authAPI.login(name, password);
-
       const { token: newToken, user: userData } = response;
 
-      // Save token to localStorage
       localStorage.setItem("token", newToken);
       setToken(newToken);
       setUser(userData);
       setIsAuthenticated(true);
 
-      toast(t("common.success"), {
-        icon: <CheckCircle color="green" />, 
-        description: `${t("auth.login")} ${t("common.success").toLowerCase()}`,
+      toast.success(t("common.success"), {
+        description: t("auth.loginSuccess") || "تم تسجيل الدخول بنجاح",
       });
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err.message || t("auth.invalidCredentials"));
-      toast(t("common.error"), {
-        icon: <AlertTriangle color="red" />, 
-        description: err.message || t("auth.invalidCredentials"),
-      });
+    } catch (error) {
+      handleError(error, "login");
     } finally {
       setLoading(false);
     }
@@ -111,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         token,
         loading,
-        error,
+        error: null,
         login,
         logout,
         isAuthenticated,

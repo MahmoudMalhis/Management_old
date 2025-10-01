@@ -25,14 +25,15 @@ import {
 import {
   LucidePlus,
   LucideLoader,
-  LucideFileCheck,
-  LucideFileClock,
   LucideFileText,
   LucideFilter,
   LucideX,
   LucideDownload,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAsyncState } from "@/hooks/useErrorHandler";
+import { ErrorCard } from "@/components/ErrorDisplay";
+import { handleError } from "@/utils/errorHandler";
 
 interface Accomplishment {
   _id: string;
@@ -62,9 +63,12 @@ const AccomplishmentsList = () => {
   const { isManager } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [accomplishments, setAccomplishments] = useState<Accomplishment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: accomplishments,
+    loading,
+    error,
+    execute: fetchAccomplishments,
+  } = useAsyncState<Accomplishment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -100,30 +104,21 @@ const AccomplishmentsList = () => {
   }, [isManager, location.search, selectedEmployee]);
 
   // Fetch accomplishments with filters
-  useEffect(() => {
-    const fetchAccomplishments = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+useEffect(() => {
+  const filters: Record<string, string> = {};
+  if (selectedEmployee && selectedEmployee !== "all")
+    filters.employee = selectedEmployee;
+  if (startDate) filters.startDate = startDate;
+  if (endDate) filters.endDate = endDate;
 
-        const filters: Record<string, string> = {};
-        if (selectedEmployee && selectedEmployee !== "all")
-          filters.employee = selectedEmployee;
-        if (startDate) filters.startDate = startDate;
-        if (endDate) filters.endDate = endDate;
-
-        const response = await accomplishmentsAPI.getAccomplishments(filters);
-        setAccomplishments(response.data || []);
-      } catch (err) {
-        console.error("Error fetching accomplishments:", err);
-        setError(err.message || t("accomplishments.loadFailed"));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAccomplishments();
-  }, [selectedEmployee, startDate, endDate, t]);
+  fetchAccomplishments(
+    async () => {
+      const result = await accomplishmentsAPI.getAccomplishments(filters);
+      return result.data || []; // ✅ استخرج data من النتيجة
+    },
+    "fetchAccomplishments"
+  );
+}, [selectedEmployee, startDate, endDate, fetchAccomplishments]);
 
   const handleExport = async () => {
     try {
@@ -150,7 +145,7 @@ const AccomplishmentsList = () => {
           const err = JSON.parse(text);
           throw new Error(err.message || "فشل التصدير");
         } catch {
-          throw new Error("فشل التصدير");
+          handleError(error, "handleExport");
         }
       }
 
@@ -327,17 +322,29 @@ const AccomplishmentsList = () => {
       )}
 
       {/* Loading and error states */}
-      {loading ? (
+      {loading && (
         <div className="flex justify-center p-8">
           <LucideLoader className="h-8 w-8 animate-spin" />
         </div>
-      ) : error ? (
-        <Card className="glass-card border border-red-200">
-          <CardContent className="flex items-center gap-2 py-6">
-            <span className="text-red-600 dark:text-red-400">{error}</span>
-          </CardContent>
-        </Card>
-      ) : (
+      )}
+
+      {error && (
+        <ErrorCard
+          error={error}
+          onRetry={() =>
+            fetchAccomplishments(
+              () => accomplishmentsAPI.getAccomplishments(
+                selectedEmployee && selectedEmployee !== "all"
+                  ? { employee: selectedEmployee, startDate, endDate }
+                  : { startDate, endDate }
+              ),
+              "fetchAccomplishments"
+            )
+          }
+        />
+      )}
+
+      {!loading && !error && (
         <div className="flex flex-wrap justify-center gap-3 mx-auto">
           {accomplishmentsToDisplay.length > 0 ? (
             accomplishmentsToDisplay.map((accomplishment) => (
@@ -436,11 +443,6 @@ const AccomplishmentsList = () => {
                     </CardContent>
                   </div>
                 </Link>
-                {/* <CardFooter className="pt-0">
-                      
-                        <Button>{t("common.view")}</Button>
-                      </Link>
-                    </CardFooter> */}
               </Card>
             ))
           ) : (

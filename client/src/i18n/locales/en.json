@@ -10,7 +10,8 @@
     "password": "Password",
     "forgotPassword": "Forgot Password",
     "loginButton": "Login",
-    "invalidCredentials": "Invalid email or password"
+    "invalidCredentials": "Invalid email or password",
+    "loginSuccess": "Logged in successfully"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -63,7 +64,8 @@
     "exportFailed": "Failed to export accomplishments",
     "exporting": "Exporting...",
     "startTask": "Start Task",
-    "originalManagerDescription": "Original manager description:"
+    "originalManagerDescription": "Original manager description:",
+    "addedSuccessfully": "Added successfully"
   },
   "employees": {
     "title": "Employees",
@@ -86,6 +88,7 @@
     "addTask": "Add Accomplishment",
     "staffArchive": "Staff Archive",
     "backToStaffList": "Back to staff list",
+    "archived": "The employee has been archived successfully.",
     "noArchivedEmployees": "There are no archived employees"
   },
   "notifications": {

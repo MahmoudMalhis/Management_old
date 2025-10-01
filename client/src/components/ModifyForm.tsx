@@ -1,12 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { accomplishmentsAPI } from "@/api/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { CheckCircle, AlertTriangle, LucideLoader } from "lucide-react";
-// Reuse the unified FileData type from the shared FileUpload component
+import { LucideLoader } from "lucide-react";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateAccomplishmentForm } from "@/utils/validation";
 import FileUpload, { FileData } from "@/components/FileUpload";
 
 interface ModifyFormProps {
@@ -24,33 +24,33 @@ const ModifyForm: React.FC<ModifyFormProps> = ({
   onModified,
   mode = "modify",
 }) => {
-  // translation hook for dynamic labels
   const { t } = useTranslation();
   const [description, setDescription] = useState(oldDescription);
   const [files, setFiles] = useState<FileData[]>(oldFiles);
   const [loading, setLoading] = useState(false);
-  // Note: File selection and removal are now handled by the shared
-  // FileUpload component. We no longer need separate handlers here.
+  const { handleError } = useErrorHandler();
 
-  // إرسال البيانات للسيرفر
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const formData = new FormData();
-      formData.append("description", description);
-      // Append only the newly uploaded files to the form data. We
-      // identify new files by the presence of the `file` property on
-      // each FileData item. Existing files from the DB do not have
-      // `file`, so they will not be reuploaded.
+
+      // التحقق من صحة البيانات
       const newFilesForUpload = files.filter((f) => f.file);
+      validateAccomplishmentForm(
+        description,
+        accomplishmentId,
+        newFilesForUpload.map((f) => f.file!)
+      );
+
+      const formData = new FormData();
+      formData.append("description", description.trim());
+
       newFilesForUpload.forEach((f) => {
         if (f.file) {
           formData.append("files", f.file);
         }
       });
-
-      console.log("Description:", description, "Files:", files);
 
       if (mode === "start") {
         await accomplishmentsAPI.startAccomplishment(
@@ -63,16 +63,13 @@ const ModifyForm: React.FC<ModifyFormProps> = ({
           formData
         );
       }
-      // success toast
-      toast(t("common.editedSuccessfully"), {
-        icon: <CheckCircle color="green" />,
+
+      toast.success(t("common.success"), {
+        description: t("common.editedSuccessfully"),
       });
       onModified();
-    } catch (error: any) {
-      toast(t("common.error"), {
-        icon: <AlertTriangle color="red" />,
-        description: error.message,
-      });
+    } catch (error) {
+      handleError(error, "handleSubmit");
     } finally {
       setLoading(false);
     }

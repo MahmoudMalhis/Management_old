@@ -9,7 +9,8 @@
     "password": "كلمة المرور",
     "forgotPassword": "نسيت كلمة المرور",
     "loginButton": "دخول",
-    "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صالحة"
+    "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صالحة",
+    "loginSuccess": "تم تسجيل الدخول بنجاح"
   },
   "navigation": {
     "dashboard": "لوحة التحكم",
@@ -62,7 +63,8 @@
     "exportFailed": "تعذر تصدير الإنجازات",
     "exporting": "جاري التصدير...",
     "startTask": "بدء المهمة",
-    "originalManagerDescription": "وصف المهمة الأصلي:"
+    "originalManagerDescription": "وصف المهمة الأصلي:",
+    "addedSuccessfully": "تمت الإضافة بنجاح"
   },
   "employees": {
     "title": "الموظفين",
@@ -85,6 +87,7 @@
     "addTask": "إضافة مهمة",
     "staffArchive": "أرشيف الموظفين",
     "backToStaffList": "عودة لقائمة الموظفين",
+    "archived": "تمت أرشفة الموظف بنجاح",
     "noArchivedEmployees": "لا يوجد موظفون مؤرشفون"
   },
   "notifications": {

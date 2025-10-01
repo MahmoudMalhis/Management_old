@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { comparisonsAPI } from "@/api/api";
@@ -6,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LucideArrowLeft, LucideTrash2, LucideFolderOpen } from "lucide-react";
 import { toast } from "sonner";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 
 type QuickRange = "all" | "week" | "month" | "year" | "custom";
 
@@ -24,6 +24,7 @@ export default function SavedComparisonsPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<SavedComparison[]>([]);
   const [loading, setLoading] = useState(false);
+const { handleError } = useErrorHandler();
 
   const load = async () => {
     try {
@@ -34,8 +35,8 @@ export default function SavedComparisonsPage() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       setItems(data);
-    } catch (e: any) {
-      toast.error(e?.message || "فشل التحميل");
+    } catch (error) {
+      handleError(error, "loadComparisons");
     } finally {
       setLoading(false);
     }
@@ -59,8 +60,8 @@ export default function SavedComparisonsPage() {
       await comparisonsAPI.remove(id);
       setItems((prev) => prev.filter((x) => x._id !== id));
       toast.success("تم الحذف");
-    } catch (e: any) {
-      toast.error(e?.message || "فشل الحذف");
+    } catch (error) {
+  handleError(error, "removeComparison");
     }
   };
 

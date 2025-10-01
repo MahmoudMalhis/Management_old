@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -7,16 +6,15 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// Use FormCard wrapper for consistent form layout
 import FormCard from "@/components/FormCard";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   LucideArrowLeft,
   LucideUserPlus,
-  CheckCircle,
-  AlertTriangle,
 } from "lucide-react";
 import FormActions from "@/components/FormActions";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateEmployeeForm } from "@/utils/validation";
+import { ErrorAlert } from "@/components/ErrorDisplay";
 
 const AddEmployee = () => {
   const { t } = useTranslation();
@@ -29,7 +27,7 @@ const AddEmployee = () => {
     confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, handleError, clearError } = useErrorHandler();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -42,41 +40,26 @@ const AddEmployee = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError(
-        t("employees.confirmPassword") + " " + t("common.error").toLowerCase()
-      );
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError(t("employees.passwordMinLength"));
-      return;
-    }
-
     try {
       setLoading(true);
-      setError(null);
+      clearError();
+
+      // التحقق من صحة البيانات
+      validateEmployeeForm(
+        formData.name,
+        formData.password,
+        formData.confirmPassword
+      );
 
       await authAPI.registerEmployee(formData.name, formData.password);
 
-      // Show success notification
-      toast(t("common.success"), {
-        icon: <CheckCircle color="green" />,
-        description:
-          t("employees.add") + " " + t("common.success").toLowerCase(),
+      toast.success(t("common.success"), {
+        description: t("employees.addedSuccessfully"),
       });
 
       navigate("/employees");
-    } catch (err: any) {
-      console.error("Error registering employee:", err);
-      setError(err.message || t("common.error"));
-
-      toast(t("common.error"), {
-        icon: <AlertTriangle color="red" />,
-        description: err.message || t("common.error"),
-      });
+    } catch (error) {
+      handleError(error, "handleSubmit");
     } finally {
       setLoading(false);
     }
@@ -93,7 +76,6 @@ const AddEmployee = () => {
         {t("common.back")}
       </Button>
 
-      {/* Wrap the form around the FormCard so submit works */}
       <form onSubmit={handleSubmit}>
         <FormCard
           title={t("employees.add")}
@@ -109,11 +91,7 @@ const AddEmployee = () => {
             />
           }
         >
-          {error && (
-            <Alert variant="destructive" className="glass-card">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <ErrorAlert error={error} onDismiss={clearError} />}
           <div className="space-y-2">
             <Label htmlFor="name" className="glassy-text">
               {t("employees.name")}

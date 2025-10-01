@@ -10,18 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import FormCard from "@/components/FormCard";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  LucideUpload,
-  LucideArrowLeft,
-  CheckCircle,
-  AlertTriangle,
-  Plus,
-} from "lucide-react";
+import { LucideUpload, LucideArrowLeft, Plus } from "lucide-react";
 import FileUpload, { FileData } from "@/components/FileUpload";
 import SelectWithLabel from "@/components/SelectWithLabel";
 import FormActions from "@/components/FormActions";
 import { Input } from "@/components/ui/input";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateAccomplishmentForm } from "@/utils/validation";
+import { ErrorAlert } from "@/components/ErrorDisplay";
+import { ValidationError } from "@/types/errors";
 
 const AddAccomplishment = () => {
   const { t } = useTranslation();
@@ -42,6 +39,10 @@ const AddAccomplishment = () => {
   const [showAddTitle, setShowAddTitle] = useState(false);
   const [newTitleName, setNewTitleName] = useState("");
   const [addingTitle, setAddingTitle] = useState(false);
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<FileData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { error, handleError, clearError } = useErrorHandler();
 
   useEffect(() => {
     if (user?.role === "manager") {
@@ -55,38 +56,35 @@ const AddAccomplishment = () => {
     api.get("/task-titles").then((res) => setTaskTitles(res.data.data));
   }, []);
 
-  const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<FileData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!description.trim()) {
-      setError(
-        t("accomplishments.description") + " " + t("common.error").toLowerCase()
-      );
-      return;
-    }
-
     try {
       setLoading(true);
-      setError(null);
+      clearError();
+
+      // التحقق من صحة البيانات
+      validateAccomplishmentForm(
+        description,
+        selectedTitle,
+        files.map((f) => f.file).filter((file): file is File => !!file)
+      );
+
+      if (user?.role === "manager" && !selectedEmployee) {
+        throw new ValidationError(t("common.selectEmployeeRequired"));
+      }
 
       const formData = new FormData();
-      formData.append("description", description);
+      formData.append("description", description.trim());
       formData.append("taskTitle", selectedTitle);
+
       files.forEach((fileData) => {
         if (fileData.file) {
           formData.append("files", fileData.file);
         }
       });
+
       if (user?.role === "manager") {
-        if (!selectedEmployee) {
-          setError(t("common.selectEmployeeRequired"));
-          return;
-        }
         formData.append("employee", selectedEmployee);
       }
 
@@ -102,20 +100,13 @@ const AddAccomplishment = () => {
         createdAt: response.data.createdAt,
       });
 
-      toast(t("common.success"), {
-        icon: <CheckCircle color="green" />,
-        description:
-          t("accomplishments.add") + " " + t("common.success").toLowerCase(),
+      toast.success(t("common.success"), {
+        description: t("accomplishments.addedSuccessfully"),
       });
 
       navigate("/accomplishments");
-    } catch (err: any) {
-      console.error("Error adding accomplishment:", err);
-      setError(err.message || t("common.error"));
-      toast(t("common.error"), {
-        icon: <AlertTriangle color="red" />,
-        description: err.message || t("common.error"),
-      });
+    } catch (error) {
+      handleError(error, "handleSubmit");
     } finally {
       setLoading(false);
     }
@@ -170,11 +161,7 @@ const AddAccomplishment = () => {
             />
           }
         >
-          {error && (
-            <Alert variant="destructive" className="glass-card">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <ErrorAlert error={error} onDismiss={clearError} />}
           {user?.role === "manager" && (
             <SelectWithLabel
               label={`${t("common.selectEmployee")}:`}

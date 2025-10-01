@@ -6,7 +6,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import api from "@/api/api";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateTaskTitleForm } from "@/utils/validation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminTaskTitles() {
   const [titles, setTitles] = useState<{ _id: string; name: string }[]>([]);
@@ -17,6 +28,11 @@ export default function AdminTaskTitles() {
   const [loading, setLoading] = useState(false);
   const { isManager } = useAuth();
   const { t } = useTranslation();
+  const { handleError } = useErrorHandler();
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchTitles();
@@ -27,56 +43,54 @@ export default function AdminTaskTitles() {
     try {
       const res = await api.get("/task-titles");
       setTitles(res.data.data);
-    } catch (e) {
-      toast(t("taskTitles.loadFailed"), {
-        icon: <AlertTriangle color="red" />,
-      });
+    } catch (error) {
+      handleError(error, "fetchTitles");
     } finally {
       setLoading(false);
     }
   };
 
   const addTitle = async () => {
-    if (!newTitle.trim()) return;
     try {
+      validateTaskTitleForm(newTitle);
+
       await api.post("/task-titles", { name: newTitle.trim() });
       setNewTitle("");
       fetchTitles();
-      // show success toast
-      toast(t("common.success"), { icon: <CheckCircle color="green" /> });
-    } catch (e) {
-      toast(t("taskTitles.duplicateError"), {
-        icon: <AlertTriangle color="red" />,
-      });
+      toast.success(t("common.success"));
+    } catch (error) {
+      handleError(error, "addTitle");
     }
   };
 
   const saveEdit = async () => {
-    if (!editing || !editing.name.trim()) return;
     try {
+      if (!editing || !editing.name.trim()) return;
+
+      validateTaskTitleForm(editing.name);
+
       await api.put(`/task-titles/${editing.id}`, {
         name: editing.name.trim(),
       });
       setEditing(null);
       fetchTitles();
-      toast(t("common.success"), { icon: <CheckCircle color="green" /> });
-    } catch (e) {
-      toast(t("taskTitles.duplicateError"), {
-        icon: <AlertTriangle color="red" />,
-      });
+      toast.success(t("common.success"));
+    } catch (error) {
+      handleError(error, "saveEdit");
     }
   };
 
-  const removeTitle = async (id: string) => {
-    if (!window.confirm(t("taskTitles.deleteConfirm"))) return;
+  const removeTitle = async () => {
+    if (!deleteConfirm) return;
+    const { id } = deleteConfirm;
+
     try {
       await api.delete(`/task-titles/${id}`);
       fetchTitles();
-      toast(t("common.success"), { icon: <CheckCircle color="green" /> });
-    } catch {
-      toast(t("taskTitles.deleteError"), {
-        icon: <AlertTriangle color="red" />,
-      });
+      toast.success(t("common.success"));
+      setDeleteConfirm(null);
+    } catch (error) {
+      handleError(error, "removeTitle");
     }
   };
 
@@ -144,7 +158,9 @@ export default function AdminTaskTitles() {
                       {t("common.edit")}
                     </Button>
                     <Button
-                      onClick={() => removeTitle(title._id)}
+                      onClick={() =>
+                        setDeleteConfirm({ id: title._id, name: title.name })
+                      }
                       variant="destructive"
                       size="sm"
                     >
@@ -162,6 +178,33 @@ export default function AdminTaskTitles() {
           </ul>
         </CardContent>
       </Card>
+      <AlertDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+      >
+        <AlertDialogContent className="glass-card !bg-background">
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف عنوان المهمة</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف عنوان المهمة
+              {deleteConfirm ? ` "${deleteConfirm.name}"` : ""}؟ لا يمكن التراجع
+              عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="glass-btn">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="glass-btn bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                removeTitle();
+              }}
+            >
+              تأكيد الحذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

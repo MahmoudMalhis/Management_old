@@ -9,6 +9,7 @@ import {
 import { notificationsAPI } from "@/api/api";
 import { useSocket } from "@/contexts/SocketContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { ErrorHandler } from "@/utils/errorHandler";
 
 type Notif = {
   _id: string;
@@ -36,12 +37,9 @@ const NotificationsContext = createContext<Ctx | null>(null);
 export const NotificationsProvider = ({ children }) => {
   const { user, isAuthenticated, token } = useAuth();
   const { socket } = useSocket();
-
   const [notifications, setNotifications] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const isFetchingMoreRef = useRef(false);
@@ -72,8 +70,9 @@ export const NotificationsProvider = ({ children }) => {
       setUnreadCount((prev) =>
         recalcUnread(append ? [...notifications, ...data] : data)
       );
-    } catch (e) {
-      console.error("Failed to fetch notifications:", e);
+    } catch (error) {
+      const appError = ErrorHandler.handle(error);
+      ErrorHandler.log(appError, "fetchNotifications");
     } finally {
       if (append) isFetchingMoreRef.current = false;
       else setLoading(false);
@@ -91,8 +90,9 @@ export const NotificationsProvider = ({ children }) => {
       await notificationsAPI.markAllRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (e) {
-      console.error("markAllRead error:", e);
+    } catch (error) {
+      const appError = ErrorHandler.handle(error);
+      ErrorHandler.log(appError, "markAllRead");
     }
   };
 
@@ -103,8 +103,9 @@ export const NotificationsProvider = ({ children }) => {
         prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
       );
       setUnreadCount((prev) => Math.max(prev - 1, 0));
-    } catch (e) {
-      console.error("markRead error:", e);
+    } catch (error) {
+      const appError = ErrorHandler.handle(error);
+      ErrorHandler.log(appError, "markRead");
     }
   };
 

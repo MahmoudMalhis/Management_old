@@ -6,6 +6,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Navigation, Pagination } from "swiper/modules";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 
 export default function GalleryPage() {
   const [folders, setFolders] = useState([]);
@@ -13,16 +14,28 @@ export default function GalleryPage() {
   const [showSwiper, setShowSwiper] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [search, setSearch] = useState("");
-
+  const { handleError } = useErrorHandler();
   const { t } = useTranslation();
 
   useEffect(() => {
-    api.get("/gallery/folders").then((res) => setFolders(res.data.folders));
-  }, []);
+    const loadFolders = async () => {
+      try {
+        const res = await api.get("/gallery/folders");
+        setFolders(res.data.folders);
+      } catch (error) {
+        handleError(error, "loadFolders");
+      }
+    };
+    loadFolders();
+  }, [handleError]);
 
   const openFolder = async (folderId) => {
-    const res = await api.get(`/gallery/folders/${folderId}`);
-    setSelectedFolder(res.data.folder);
+    try {
+      const res = await api.get(`/gallery/folders/${folderId}`);
+      setSelectedFolder(res.data.folder);
+    } catch (error) {
+      handleError(error, "openFolder");
+    }
   };
 
   const filteredFolders = folders.filter((folder) =>

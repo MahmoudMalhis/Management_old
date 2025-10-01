@@ -16,11 +16,13 @@ import {
   LucideFileClock,
   LucideCheck,
   CheckCircle,
-  AlertTriangle,
 } from "lucide-react";
 import ModifyForm from "@/components/ModifyForm";
 import AccomplishmentVersionBlock from "@/components/accomplishment/AccomplishmentVersionBlock";
 import api from "@/api/api";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { validateCommentForm } from "@/utils/validation";
+import { ErrorAlert } from "@/components/ErrorDisplay";
 
 const AccomplishmentDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +33,7 @@ const AccomplishmentDetails = () => {
 
   const [accomplishment, setAccomplishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, handleError, clearError } = useErrorHandler();
   const [commentText, setCommentText] = useState({});
 
   // ردود (Reply) للتعليقات
@@ -49,11 +51,10 @@ const AccomplishmentDetails = () => {
   const fetchAccomplishment = async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await accomplishmentsAPI.getAccomplishment(id!);
       setAccomplishment(response.data);
-    } catch (err) {
-      setError(err.message || t("common.error"));
+    } catch (error) {
+      handleError(error, "fetchAccomplishment");
     } finally {
       setLoading(false);
     }
@@ -68,21 +69,20 @@ const AccomplishmentDetails = () => {
   const handleReviewAccomplishment = async (status: string) => {
     try {
       setReviewing(true);
+      clearError();
+
       await accomplishmentsAPI.reviewAccomplishment(id!, status);
       await fetchAccomplishment();
       sendAccomplishmentReviewed(id!, accomplishment!.employee._id);
-      if (status === "reviewed") {
-        toast(t("common.success"), {
-          icon: <CheckCircle color="green" />,
-          description: t("accomplishments.reviewedSuccess"), // استخدم نص مخصص لو عندك
-        });
-      } else if (status === "needs_modification") {
-        toast(t("accomplishments.needsModification"), {
-          icon: <AlertTriangle color="red" />,
 
-          description: t("accomplishments.modificationRequested"),
-        });
-      }
+      toast.success(t("common.success"), {
+        description:
+          status === "reviewed"
+            ? t("accomplishments.reviewedSuccess")
+            : t("accomplishments.modificationRequested"),
+      });
+    } catch (error) {
+      handleError(error, "handleReviewAccomplishment");
     } finally {
       setReviewing(false);
     }
@@ -133,6 +133,11 @@ const AccomplishmentDetails = () => {
 
     setSubmitting(true);
     try {
+      setSubmitting(true);
+      clearError();
+
+      validateCommentForm(text);
+
       const response = await accomplishmentsAPI.addComment(
         id!,
         text,
@@ -140,18 +145,12 @@ const AccomplishmentDetails = () => {
       );
       setAccomplishment(response.data);
       setCommentText((prev) => ({ ...prev, [displayIdx]: "" }));
-      try {
-        toast(t("common.success"), {
-          description:
-            t("accomplishments.addComment") +
-            " " +
-            t("common.success").toLowerCase(),
-        });
-      } catch (err) {
-        toast(t("common.error"), {
-          description: err.message || t("common.error"),
-        });
-      }
+
+      toast.success(t("common.success"), {
+        description: t("accomplishments.commentAdded"),
+      });
+    } catch (error) {
+      handleError(error, "handleAddComment");
     } finally {
       setSubmitting(false);
     }
@@ -201,7 +200,7 @@ const AccomplishmentDetails = () => {
       <Card className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900">
         <CardContent className="flex items-center justify-between py-6">
           <span className="text-red-600 dark:text-red-400">
-            {error || t("common.error")}
+            {error && <ErrorAlert error={error} onDismiss={clearError} />}{" "}
           </span>
           <Button
             variant="outline"
@@ -304,8 +303,6 @@ const AccomplishmentDetails = () => {
                 accomplishment.originalFiles.length > 0 && (
                   <div className="flex flex-wrap gap-3">
                     {accomplishment.originalFiles.map((file, idx) => {
-                      // base url (لو بتخزن مسار نسبي)
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       const BASE_URL: string =
                         (import.meta as any).env?.VITE_API_URL ||
                         "http://localhost:5000";

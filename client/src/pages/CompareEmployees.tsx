@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import { LucideArrowLeft, LucideLoader, LucideFileText } from "lucide-react";
 import { toast } from "sonner";
 import Popup from "@/components/Popup";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { ErrorCard } from "@/components/ErrorDisplay";
 
 interface Employee {
   _id: string;
@@ -76,7 +78,7 @@ const CompareEmployees = () => {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [employeesData, setEmployeesData] = useState<EmployeeData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, handleError, clearError } = useErrorHandler();
   const [range, setRange] = useState<QuickRange>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -106,14 +108,13 @@ const CompareEmployees = () => {
             name: e.name,
           }))
         );
-      } catch (err) {
-        console.error("Error fetching employees:", err);
-        setError(t("employees.loadFailed"));
+      } catch (error) {
+        handleError(error, "fetchEmployeeData");
       }
     };
 
     fetchEmployees();
-  }, [t]);
+  }, []);
 
   // Fetch accomplishments for selected employees
   useEffect(() => {
@@ -123,10 +124,7 @@ const CompareEmployees = () => {
         setLoading(false);
         return;
       }
-
       setLoading(true);
-      setError(null);
-
       try {
         const newEmployeesData: EmployeeData[] = selectedIds.map((_id) => ({
           employee: {
@@ -184,9 +182,8 @@ const CompareEmployees = () => {
         });
 
         setEmployeesData(updatedEmployeesData);
-      } catch (err) {
-        console.error("Error in comparison:", err);
-        setError(err.message || t("common.error"));
+      } catch (error) {
+        handleError(error, "fetchEmployeeData");
       } finally {
         setLoading(false);
       }
@@ -320,11 +317,7 @@ const CompareEmployees = () => {
 
       {/* Error state */}
       {error && (
-        <Card className="glass-card border border-red-200">
-          <CardContent className="flex items-center gap-2 py-6">
-            <span className="text-red-600 dark:text-red-400">{error}</span>
-          </CardContent>
-        </Card>
+        <ErrorCard error={error} onRetry={() => window.location.reload()} />
       )}
 
       {/* Comparison view */}

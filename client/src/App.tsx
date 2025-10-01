@@ -25,6 +25,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import { NotificationsProvider } from "./contexts/NotificationsContext";
 import ArchivedEmployees from "./pages/ArchivedEmployees";
 import SavedComparisonsPage from "./pages/SavedComparisonsPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -141,20 +142,22 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <SocketProvider>
-        <NotificationsProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <TooltipProvider>
-              <Toaster />
-              <AppContent />
-            </TooltipProvider>
-          </Suspense>
-        </NotificationsProvider>
-      </SocketProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SocketProvider>
+          <NotificationsProvider>
+            <Suspense fallback={<div>Loading...</div>}>
+              <TooltipProvider>
+                <Toaster />
+                <AppContent />
+              </TooltipProvider>
+            </Suspense>
+          </NotificationsProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
